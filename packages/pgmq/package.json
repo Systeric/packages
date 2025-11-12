@@ -1,0 +1,76 @@
+{
+  "name": "@systeric/pg-queue",
+  "version": "0.2.2",
+  "type": "module",
+  "private": false,
+  "description": "A TypeScript library (not a service) for PostgreSQL message queue primitives with LISTEN/NOTIFY and work-stealing",
+  "author": "Systeric",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Systeric/exec-asst.git",
+    "directory": "packages/pgmq"
+  },
+  "homepage": "https://github.com/Systeric/exec-asst/tree/main/packages/pgmq",
+  "bugs": {
+    "url": "https://github.com/Systeric/exec-asst/issues"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint 'src/**/*.ts' --ignore-pattern '**/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "publish:npm": "./scripts/publish.sh",
+    "prepublishOnly": "pnpm run build && pnpm run test"
+  },
+  "dependencies": {
+    "pg": "^8.13.1",
+    "uuid": "^11.0.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/pg": "^8.11.10",
+    "@types/uuid": "^10.0.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "keywords": [
+    "postgresql",
+    "postgres",
+    "message-queue",
+    "queue",
+    "work-stealing",
+    "listen-notify",
+    "outbox-pattern",
+    "transactional-outbox",
+    "event-driven",
+    "background-jobs",
+    "task-queue",
+    "distributed-systems",
+    "pg-queue",
+    "ddd",
+    "domain-driven-design"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "peerDependencies": {
+    "pg": "^8.0.0"
+  }
+}

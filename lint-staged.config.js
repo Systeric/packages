@@ -1,0 +1,4 @@
+module.exports = {
+  "*.{ts,tsx}": ["prettier --write"],
+  "*.{json,md}": ["prettier --write"],
+};

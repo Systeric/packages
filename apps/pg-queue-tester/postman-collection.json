@@ -1,0 +1,290 @@
+{
+  "info": {
+    "name": "pg-queue-tester",
+    "description": "Test collection for @systeric/pg-queue POC",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Queue Operations",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Get Queue Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/stats",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["stats"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Enqueue Messages",
+      "item": [
+        {
+          "name": "Enqueue - Email (Success)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"email.send\",\n  \"payload\": {\n    \"to\": \"user@example.com\",\n    \"subject\": \"Test Email\",\n    \"body\": \"This is a test email\"\n  },\n  \"priority\": 5,\n  \"maxRetries\": 3\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/enqueue",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["enqueue"]
+            }
+          }
+        },
+        {
+          "name": "Enqueue - Email (Will Fail)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"email.send\",\n  \"payload\": {\n    \"to\": \"fail@example.com\",\n    \"subject\": \"Test Email\",\n    \"body\": \"This email will fail\"\n  },\n  \"priority\": 3,\n  \"maxRetries\": 3\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/enqueue",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["enqueue"]
+            }
+          }
+        },
+        {
+          "name": "Enqueue - SMS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"sms.send\",\n  \"payload\": {\n    \"phone\": \"+1234567890\",\n    \"message\": \"Test SMS\"\n  },\n  \"priority\": 3,\n  \"maxRetries\": 3\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/enqueue",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["enqueue"]
+            }
+          }
+        },
+        {
+          "name": "Enqueue - Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"webhook.post\",\n  \"payload\": {\n    \"url\": \"https://httpbin.org/post\",\n    \"data\": {\n      \"event\": \"test\"\n    }\n  },\n  \"priority\": 5,\n  \"maxRetries\": 3\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/enqueue",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["enqueue"]
+            }
+          }
+        },
+        {
+          "name": "Enqueue - Task (High Priority)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"task.process\",\n  \"payload\": {\n    \"taskName\": \"Generate Report\",\n    \"shouldFail\": false\n  },\n  \"priority\": 1,\n  \"maxRetries\": 5\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/enqueue",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["enqueue"]
+            }
+          }
+        },
+        {
+          "name": "Enqueue - Task (Will Fail)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"task.process\",\n  \"payload\": {\n    \"taskName\": \"Import Data\",\n    \"shouldFail\": true,\n    \"failReason\": \"Database connection timeout\"\n  },\n  \"priority\": 5,\n  \"maxRetries\": 3\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/enqueue",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["enqueue"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Query Messages",
+      "item": [
+        {
+          "name": "Get PENDING Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/messages/PENDING?limit=10",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["messages", "PENDING"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get PROCESSING Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/messages/PROCESSING?limit=10",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["messages", "PROCESSING"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get COMPLETED Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/messages/COMPLETED?limit=10",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["messages", "COMPLETED"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get FAILED Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/messages/FAILED?limit=10",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["messages", "FAILED"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get DEAD_LETTER Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/messages/DEAD_LETTER?limit=10",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["messages", "DEAD_LETTER"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

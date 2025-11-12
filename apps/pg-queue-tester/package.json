@@ -1,0 +1,30 @@
+{
+  "name": "@systeric/pg-queue-tester",
+  "version": "0.1.0",
+  "private": true,
+  "description": "POC app for testing @systeric/pg-queue with Hono API and worker",
+  "type": "module",
+  "scripts": {
+    "dev:api": "tsx watch src/api.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "dev": "concurrently \"pnpm dev:api\" \"pnpm dev:worker\"",
+    "build": "tsc",
+    "start:api": "node dist/api.js",
+    "start:worker": "node dist/worker.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint 'src/**/*.ts'"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.6",
+    "@systeric/pg-queue": "^0.2.0",
+    "hono": "^4.6.14",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/pg": "^8.11.10",
+    "concurrently": "^9.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3"
+  }
+}

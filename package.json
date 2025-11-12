@@ -1,0 +1,46 @@
+{
+  "name": "@systeric/packages",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Systeric open-source TypeScript packages",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "prepare": "husky install",
+    "publish:pg-queue": "cd packages/pgmq && ./scripts/publish.sh"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.37.0",
+    "@turbo/gen": "^1.11.0",
+    "eslint": "^9",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.1.0",
+    "prettier": "^3.1.0",
+    "turbo": "^1.11.0",
+    "typescript": "^5.3.0",
+    "typescript-eslint": "^8.46.1"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.11.0",
+  "dependencies": {
+    "@vitest/ui": "^3.2.4",
+    "vitest": "^3.2.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Systeric/packages.git"
+  },
+  "author": "Systeric",
+  "license": "MIT"
+}
