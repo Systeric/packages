@@ -9,6 +9,7 @@ Open-source TypeScript packages by Systeric.
 A lightweight, high-performance TypeScript library that turns PostgreSQL into a message queue. Uses `LISTEN/NOTIFY` for instant message delivery and `FOR UPDATE SKIP LOCKED` for lock-free work-stealing across multiple workers.
 
 **Features:**
+
 - 🚀 Sub-10ms latency using LISTEN/NOTIFY
 - 🔒 Zero race conditions with work-stealing
 - 💾 ACID guarantees (messages are transactions)
@@ -18,11 +19,43 @@ A lightweight, high-performance TypeScript library that turns PostgreSQL into a 
 
 [View Documentation](./packages/pgmq/README.md) | [npm](https://www.npmjs.com/package/@systeric/pg-queue)
 
+### [@systeric/auth](./packages/auth)
+
+Extensible OAuth2 authentication service with support for multiple providers via adapter pattern.
+
+**Features:**
+
+- ✅ Domain-Driven Design with Value Objects
+- ✅ Adapter Pattern for multiple OAuth providers
+- ✅ Automatic token refresh before expiry
+- ✅ Pluggable token storage
+- ✅ CSRF protection with state validation
+- ✅ Type-safe with Zod schemas
+- ✅ Comprehensive testing (109 tests, 100% coverage)
+
+[View Documentation](./packages/auth/README.md)
+
+### [@systeric/calendar](./packages/calendar)
+
+Extensible calendar service with support for multiple providers via adapter pattern.
+
+**Features:**
+
+- 📅 CRUD operations on calendar events
+- 🔌 Adapter pattern for extensibility
+- 🌍 UTC-first timezone handling
+- 📆 14-day sync window support
+- ✅ Type-safe with Zod schemas
+- 🔐 Google Calendar support (more providers coming soon)
+
+[View Documentation](./packages/calendar/README.md)
+
 ## Apps
 
 ### [pg-queue-tester](./apps/pg-queue-tester)
 
 Proof-of-concept application demonstrating `@systeric/pg-queue` usage with:
+
 - Hono API for enqueue/dequeue operations
 - Event-driven worker for message processing
 - Docker Compose for PostgreSQL
@@ -67,6 +100,8 @@ pnpm dev
 
 # Run specific package
 pnpm --filter @systeric/pg-queue dev
+pnpm --filter @systeric/auth dev
+pnpm --filter @systeric/calendar dev
 pnpm --filter @systeric/pg-queue-tester dev
 ```
 
@@ -81,7 +116,9 @@ systeric-packages/
 ├── apps/
 │   └── pg-queue-tester/     # POC application
 ├── packages/
-│   └── pgmq/                # @systeric/pg-queue library
+│   ├── pgmq/                # @systeric/pg-queue library
+│   ├── auth/                # @systeric/auth library
+│   └── calendar/            # @systeric/calendar library
 ├── package.json             # Workspace configuration
 ├── turbo.json               # Turborepo pipeline
 └── README.md               # This file
@@ -98,6 +135,7 @@ pnpm run publish:pg-queue
 ```
 
 This will:
+
 1. Verify npm authentication
 2. Check git working directory
 3. Run tests
