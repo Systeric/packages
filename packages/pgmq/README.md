@@ -1715,8 +1715,8 @@ MIT
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/Systeric/exec-asst/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Systeric/exec-asst/discussions)
+- **Issues**: [GitHub Issues](https://github.com/Systeric/packages/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Systeric/packages/discussions)
 
 ---
 

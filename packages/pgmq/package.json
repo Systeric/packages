@@ -8,12 +8,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Systeric/exec-asst.git",
+    "url": "https://github.com/Systeric/packages.git",
     "directory": "packages/pgmq"
   },
-  "homepage": "https://github.com/Systeric/exec-asst/tree/main/packages/pgmq",
+  "homepage": "https://github.com/Systeric/packages/tree/main/packages/pgmq",
   "bugs": {
-    "url": "https://github.com/Systeric/exec-asst/issues"
+    "url": "https://github.com/Systeric/packages/issues"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -237,8 +237,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Package Metadata
 
 - **License**: MIT
-- **Repository**: https://github.com/Systeric/exec-asst
-- **Homepage**: https://github.com/Systeric/exec-asst/tree/main/packages/pgmq
+- **Repository**: https://github.com/Systeric/packages
+- **Homepage**: https://github.com/Systeric/packages/tree/main/packages/pgmq
 - **Keywords**: postgresql, message-queue, queue, work-stealing, listen-notify, outbox-pattern, event-driven, background-jobs, task-queue, distributed-systems, ddd
 
 ### Notes
@@ -249,4 +249,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Infrastructure layer tested via integration tests
 - Not yet published to npm (private: false set, ready to publish)
 
-[0.1.0]: https://github.com/Systeric/exec-asst/tree/main/packages/pgmq
+[0.1.0]: https://github.com/Systeric/packages/tree/main/packages/pgmq

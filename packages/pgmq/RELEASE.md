@@ -117,7 +117,7 @@ git push origin v0.2.0
 
 - [ ] Verify package on npm: https://www.npmjs.com/package/@systeric/pg-queue
 - [ ] Test installation: `pnpm add @systeric/pg-queue`
-- [ ] Create GitHub release: https://github.com/Systeric/exec-asst/releases/new
+- [ ] Create GitHub release: https://github.com/Systeric/packages/releases/new
   - Tag: v0.2.0
   - Title: "v0.2.0 - Enhanced Publishing"
   - Description: Copy from CHANGELOG.md

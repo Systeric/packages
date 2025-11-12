@@ -1,7 +1,7 @@
 import { PgQueue } from "@systeric/pg-queue";
 
 const connectionString =
-  process.env["DATABASE_URL"] || "postgresql://postgres:postgres@localhost:5432/exec_asst";
+  process.env["DATABASE_URL"] || "postgresql://postgres:postgres@localhost:5432/pg_queue_test";
 
 console.log("🔧 Starting pg-queue worker...");
 

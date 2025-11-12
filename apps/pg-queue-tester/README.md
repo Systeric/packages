@@ -55,7 +55,7 @@ This starts PostgreSQL on `localhost:5432` with:
 
 - **User**: postgres
 - **Password**: postgres
-- **Database**: exec_asst
+- **Database**: pg_queue_test
 
 To stop PostgreSQL:
 
