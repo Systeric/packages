@@ -18,6 +18,7 @@ import {
   DatabaseError,
   TransactionError,
   BackgroundJobError,
+  NoHandlerRegisteredError,
   HandlerExecutionError,
 } from "./domain/errors/PgQueueErrors";
 
@@ -520,9 +521,7 @@ export class PgQueue extends EventEmitter {
 
     if (!handler) {
       // No handler registered for this message type
-      const error = new BackgroundJobError(
-        `No handler registered for message type: ${messageType}`
-      );
+      const error = new NoHandlerRegisteredError(messageType);
       this.emit("error", error);
       // Nack the message so it can be retried or moved to DLQ
       await this.nack(message.getId(), error);

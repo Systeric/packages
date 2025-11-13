@@ -62,8 +62,8 @@ export class MessageOperationError extends PgQueueError {
  * Thrown when a background job fails
  */
 export class BackgroundJobError extends PgQueueError {
-  constructor(message: string, cause?: Error) {
-    super(message, "BACKGROUND_JOB_ERROR", cause);
+  constructor(message: string, cause?: Error, code = "BACKGROUND_JOB_ERROR") {
+    super(message, code, cause);
   }
 }
 
@@ -145,6 +145,20 @@ export class MessageRaceConditionError extends PgQueueError {
 export class InvalidQueryParameterError extends PgQueueError {
   constructor(message: string) {
     super(message, "INVALID_QUERY_PARAMETER_ERROR");
+  }
+}
+
+/**
+ * Thrown when no handler is registered for a message type
+ * This extends BackgroundJobError to maintain consistency while providing specificity
+ */
+export class NoHandlerRegisteredError extends BackgroundJobError {
+  constructor(messageType: string) {
+    super(
+      `No handler registered for message type: ${messageType}`,
+      undefined,
+      "NO_HANDLER_REGISTERED_ERROR"
+    );
   }
 }
 
