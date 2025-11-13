@@ -469,6 +469,84 @@ process.on("SIGTERM", async () => {
 });
 ```
 
+**Handling Large Volumes (1000+ Messages):**
+
+The queue handles large volumes efficiently without requiring explicit batching:
+
+```typescript
+// Scenario: 1000 pending messages in the queue
+
+const queue = await PgQueue.create({
+  queueName: "high_volume_queue",
+  connectionString: process.env.DATABASE_URL!,
+});
+
+queue.registerHandler("task", async (message) => {
+  await processTask(message.getPayload());
+});
+
+// Process up to 20 messages concurrently
+// The queue will continuously consume until all 1000 are processed
+await queue.start({ concurrency: 20 });
+
+// How it works:
+// 1. The queue dequeues messages one at a time using FOR UPDATE SKIP LOCKED
+// 2. Up to 20 messages are processed concurrently (based on concurrency setting)
+// 3. As handlers complete, new messages are dequeued automatically
+// 4. The consumption loop continues until the queue is empty
+// 5. No memory issues - messages are processed as they're dequeued, not loaded all at once
+```
+
+**Key Points:**
+
+- **No Batch Loading**: Messages are dequeued one at a time, not loaded in bulk
+- **Memory Efficient**: Only `concurrency` number of messages are in memory at once
+- **Automatic Throttling**: Concurrency setting prevents overwhelming your system
+- **Work Stealing**: Multiple workers can process the same queue simultaneously
+- **No Breaking**: The system won't break with 1000, 10,000, or 1,000,000 messages
+
+**Performance Tuning:**
+
+```typescript
+// Low volume, simple tasks
+await queue.start({ concurrency: 1 });
+
+// Medium volume (100-1000 messages)
+await queue.start({ concurrency: 10 });
+
+// High volume (1000+ messages), fast tasks
+await queue.start({ concurrency: 50 });
+
+// High volume, I/O heavy tasks (API calls, database writes)
+await queue.start({ concurrency: 100 });
+
+// Very high volume with external rate limiting
+await queue.start({ concurrency: 5 }); // Throttle to avoid overwhelming external APIs
+```
+
+**Multi-Worker Setup:**
+
+For extremely high volumes, run multiple worker instances:
+
+```typescript
+// Worker Instance 1
+const worker1 = await PgQueue.create({
+  queueName: "high_volume_queue",
+  connectionString: process.env.DATABASE_URL!,
+});
+await worker1.start({ concurrency: 20 });
+
+// Worker Instance 2 (different process/container)
+const worker2 = await PgQueue.create({
+  queueName: "high_volume_queue", // Same queue name
+  connectionString: process.env.DATABASE_URL!,
+});
+await worker2.start({ concurrency: 20 });
+
+// Result: 40 messages processed concurrently across 2 workers
+// FOR UPDATE SKIP LOCKED ensures no duplicate processing
+```
+
 ---
 
 ### Q: How do I use pg-queue with NestJS?
