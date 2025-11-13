@@ -105,7 +105,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   echo "📦 Package: https://www.npmjs.com/package/@systeric/pg-queue"
   echo ""
 
-  # Create git tag
+  # Create and push git tag
   VERSION=$(node -p "require('./package.json').version")
   echo "🏷️  Creating git tag v$VERSION..."
   if git rev-parse "v$VERSION" >/dev/null 2>&1; then
@@ -114,8 +114,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     git tag "v$VERSION"
     echo "✅ Tag v$VERSION created"
     echo ""
-    echo "📤 Don't forget to push the tag:"
-    echo "   git push origin v$VERSION"
+    echo "📤 Pushing tag to remote..."
+    git push origin "v$VERSION"
+    echo "✅ Tag v$VERSION pushed to remote"
   fi
   echo ""
 else
