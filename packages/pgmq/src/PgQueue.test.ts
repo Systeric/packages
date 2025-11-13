@@ -24,6 +24,37 @@ beforeAll(async () => {
   }
 });
 
+/**
+ * Helper function to wait for a specific number of events
+ * More reliable than setTimeout for testing async operations
+ */
+function waitForEvents(
+  queue: PgQueue,
+  eventName: string,
+  count: number,
+  timeoutMs = 5000
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let receivedCount = 0;
+    const timeout = setTimeout(() => {
+      reject(
+        new Error(`Timeout waiting for ${count} '${eventName}' events (received ${receivedCount})`)
+      );
+    }, timeoutMs);
+
+    const handler = () => {
+      receivedCount++;
+      if (receivedCount >= count) {
+        clearTimeout(timeout);
+        queue.off(eventName, handler);
+        resolve();
+      }
+    };
+
+    queue.on(eventName, handler);
+  });
+}
+
 describe("PgQueue - Auto-consumption", () => {
   let pool: Pool;
   let queue: PgQueue;
@@ -128,8 +159,8 @@ describe("PgQueue - Auto-consumption", () => {
       // Start the worker - should consume all 3 messages
       await queue.start();
 
-      // Wait for messages to be processed
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Wait for all 3 messages to be acknowledged
+      await waitForEvents(queue, "ack", 3);
 
       expect(handler).toHaveBeenCalledTimes(3);
 
@@ -158,8 +189,8 @@ describe("PgQueue - Auto-consumption", () => {
         payload: { id: 2 },
       });
 
-      // Wait for messages to be processed via LISTEN/NOTIFY
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for messages to be acknowledged via LISTEN/NOTIFY
+      await waitForEvents(queue, "ack", 2);
 
       expect(handler).toHaveBeenCalledTimes(2);
     });
@@ -175,7 +206,8 @@ describe("PgQueue - Auto-consumption", () => {
       await queue.enqueue({ type: "test", payload: { id: 1 } });
       await queue.start();
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for the ack event instead of using setTimeout
+      await waitForEvents(queue, "ack", 1);
 
       const stats = await queue.getStats();
       expect(stats.completed).toBe(1);
@@ -192,7 +224,8 @@ describe("PgQueue - Auto-consumption", () => {
       await queue.enqueue({ type: "test", payload: { id: 1 }, maxRetries: 2 });
       await queue.start();
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for the nack event
+      await waitForEvents(queue, "nack", 1);
 
       const stats = await queue.getStats();
       expect(stats.failed).toBe(1);
@@ -208,7 +241,8 @@ describe("PgQueue - Auto-consumption", () => {
       await queue.enqueue({ type: "unknown-type", payload: { id: 1 } });
       await queue.start();
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for the nack event
+      await waitForEvents(queue, "nack", 1);
 
       expect(errorHandler).toHaveBeenCalled();
       const error = errorHandler.mock.calls[0][0];
@@ -240,8 +274,8 @@ describe("PgQueue - Auto-consumption", () => {
       // Start with concurrency of 3
       await queue.start({ concurrency: 3 });
 
-      // Wait for all messages to process
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Wait for all 10 messages to be acknowledged
+      await waitForEvents(queue, "ack", 10);
 
       expect(maxConcurrent).toBeLessThanOrEqual(3);
       expect(handler).toHaveBeenCalledTimes(10);

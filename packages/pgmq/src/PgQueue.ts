@@ -119,7 +119,6 @@ export class PgQueue extends EventEmitter {
   private readonly handlers: Map<string, MessageHandler> = new Map();
   private concurrency = 1; // Max concurrent workers
   private activeWorkers = 0; // Currently processing messages
-  private consumptionLoop: Promise<void> | null = null;
   private readonly inflightMessages: Set<Promise<void>> = new Set(); // Track in-flight message processing
 
   private constructor(
@@ -398,8 +397,11 @@ export class PgQueue extends EventEmitter {
     this.scheduleStaleCheck();
     this.scheduleRetryCheck();
 
-    // Start auto-consumption loop
-    this.consumptionLoop = this.startConsumptionLoop();
+    // Start auto-consumption by kicking off initial concurrent workers
+    // Each worker will continue processing until the queue is empty
+    for (let i = 0; i < this.concurrency; i++) {
+      void this.triggerConsumption();
+    }
 
     this.emit("started");
   }
@@ -430,12 +432,6 @@ export class PgQueue extends EventEmitter {
       this.retryCheckTimeout = null;
     }
 
-    // Wait for consumption loop to finish
-    if (this.consumptionLoop) {
-      await this.consumptionLoop;
-      this.consumptionLoop = null;
-    }
-
     // Wait for all in-flight messages to complete (graceful shutdown)
     if (this.inflightMessages.size > 0) {
       await Promise.all(Array.from(this.inflightMessages));
@@ -461,37 +457,16 @@ export class PgQueue extends EventEmitter {
   }
 
   /**
-   * Main consumption loop - continuously tries to consume messages
-   * Respects concurrency limits and runs until stop() is called
-   */
-  private async startConsumptionLoop(): Promise<void> {
-    while (this.isRunning) {
-      try {
-        // Check if we can process more messages
-        if (this.activeWorkers >= this.concurrency) {
-          // Wait a bit before checking again
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          continue;
-        }
-
-        // Try to consume a message
-        await this.triggerConsumption();
-
-        // Small delay to prevent tight loop
-        await new Promise((resolve) => setTimeout(resolve, 10));
-      } catch (error) {
-        // Log error but don't stop the loop
-        this.emit("error", new BackgroundJobError("Error in consumption loop", error as Error));
-        // Wait before retrying
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
-  }
-
-  /**
    * Try to consume a single message if under concurrency limit
+   * This method is self-perpetuating: when a message is processed,
+   * it automatically tries to consume another one until the queue is empty.
    */
   private async triggerConsumption(): Promise<void> {
+    // Stop if queue is no longer running
+    if (!this.isRunning) {
+      return;
+    }
+
     // Check concurrency limit
     if (this.activeWorkers >= this.concurrency) {
       return;
@@ -500,7 +475,7 @@ export class PgQueue extends EventEmitter {
     // Try to dequeue a message
     const message = await this.dequeue();
     if (!message) {
-      // No message available
+      // No message available - worker becomes idle
       return;
     }
 
@@ -510,6 +485,9 @@ export class PgQueue extends EventEmitter {
       this.activeWorkers--;
       // Remove from in-flight set
       this.inflightMessages.delete(processingPromise);
+      // A worker is now free - try to process another message immediately
+      // This continues until the queue is empty, at which point the chain stops
+      void this.triggerConsumption();
     });
 
     // Track in-flight message
@@ -525,7 +503,9 @@ export class PgQueue extends EventEmitter {
 
     if (!handler) {
       // No handler registered for this message type
-      const error = new Error(`No handler registered for message type: ${messageType}`);
+      const error = new BackgroundJobError(
+        `No handler registered for message type: ${messageType}`
+      );
       this.emit("error", error);
       // Nack the message so it can be retried or moved to DLQ
       await this.nack(message.getId(), error);
