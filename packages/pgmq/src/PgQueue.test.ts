@@ -253,6 +253,38 @@ describe("PgQueue - Auto-consumption", () => {
       expect(stats.failed).toBe(1);
     });
 
+    it("should handle dequeue errors gracefully during consumption", async () => {
+      const errorHandler = vi.fn();
+      queue.on("error", errorHandler);
+
+      const handler = vi.fn(async (message: QueueMessage) => {
+        console.log("Processed:", message.getType());
+      });
+
+      queue.registerHandler("test", handler);
+
+      // Enqueue a message
+      await queue.enqueue({ type: "test", payload: { id: 1 } });
+
+      // Spy on dequeue to make it fail once
+      const dequeueError = new Error("Database connection lost");
+      const dequeueSpy = vi.spyOn(queue as any, "dequeue");
+      dequeueSpy.mockRejectedValueOnce(dequeueError);
+
+      await queue.start();
+
+      // Wait a bit for the error to be emitted
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Error should be emitted
+      expect(errorHandler).toHaveBeenCalled();
+      const error = errorHandler.mock.calls[0][0];
+      expect(error.message).toContain("Failed to dequeue message for consumption");
+
+      // Restore the spy
+      dequeueSpy.mockRestore();
+    });
+
     it("should respect concurrency limit", async () => {
       let concurrentCount = 0;
       let maxConcurrent = 0;
