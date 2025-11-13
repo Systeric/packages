@@ -70,6 +70,21 @@ export interface TransactionContext {
 }
 
 /**
+ * Message handler function type
+ */
+export type MessageHandler = (message: QueueMessage) => Promise<void>;
+
+/**
+ * Start options for queue worker
+ */
+export interface StartOptions {
+  /**
+   * Maximum number of messages to process concurrently (default: 1)
+   */
+  concurrency?: number;
+}
+
+/**
  * PgQueue - PostgreSQL-based message queue
  *
  * Each queue is like a Kafka topic - it has its own table:
@@ -99,6 +114,13 @@ export class PgQueue extends EventEmitter {
   private staleCheckBackoffMs = 0; // Exponential backoff tracking
   private retryCheckBackoffMs = 0; // Exponential backoff tracking
   private readonly maxBackoffMs = 60000; // Max 60 seconds backoff
+
+  // Auto-consumption fields
+  private readonly handlers: Map<string, MessageHandler> = new Map();
+  private concurrency = 1; // Max concurrent workers
+  private activeWorkers = 0; // Currently processing messages
+  private consumptionLoop: Promise<void> | null = null;
+  private readonly inflightMessages: Set<Promise<void>> = new Set(); // Track in-flight message processing
 
   private constructor(
     pool: Pool,
@@ -318,11 +340,46 @@ export class PgQueue extends EventEmitter {
   }
 
   /**
+   * Register a handler for a specific message type
+   *
+   * @param messageType - The message type to handle
+   * @param handler - The handler function
+   *
+   * @example
+   * ```typescript
+   * queue.registerHandler('welcome-email', async (message) => {
+   *   const { email, userId } = message.getPayload();
+   *   await sendWelcomeEmail(email, userId);
+   * });
+   * ```
+   */
+  registerHandler(messageType: string, handler: MessageHandler): void {
+    if (typeof handler !== "function") {
+      throw new Error("Handler must be a function");
+    }
+    if (!messageType || messageType.trim() === "") {
+      throw new Error("Message type cannot be empty");
+    }
+    this.handlers.set(messageType, handler);
+  }
+
+  /**
    * Start the queue worker
    * - Starts LISTEN/NOTIFY
    * - Starts background jobs (stale message check, retry check)
+   * - Starts auto-consumption loop if handlers are registered
+   *
+   * @param options - Start options (concurrency, etc.)
    */
-  async start(): Promise<void> {
+  async start(options?: StartOptions): Promise<void> {
+    // Idempotent - if already running, just return
+    if (this.isRunning) {
+      return;
+    }
+
+    // Set concurrency
+    this.concurrency = options?.concurrency || 1;
+
     // Start LISTEN/NOTIFY
     this.listenerClient = await this.pool.connect();
     await this.listenerClient.query(`LISTEN ${this.channelName}`);
@@ -330,6 +387,8 @@ export class PgQueue extends EventEmitter {
     this.listenerClient.on("notification", (msg: Notification) => {
       if (msg.channel === this.channelName) {
         this.emit("notification", msg.payload);
+        // Trigger consumption when new message arrives
+        void this.triggerConsumption();
       }
     });
 
@@ -339,6 +398,9 @@ export class PgQueue extends EventEmitter {
     this.scheduleStaleCheck();
     this.scheduleRetryCheck();
 
+    // Start auto-consumption loop
+    this.consumptionLoop = this.startConsumptionLoop();
+
     this.emit("started");
   }
 
@@ -346,11 +408,17 @@ export class PgQueue extends EventEmitter {
    * Stop the queue worker
    * - Stops LISTEN/NOTIFY
    * - Stops background jobs
+   * - Waits for in-flight messages to complete (graceful shutdown)
    * - Closes connection pool (ONLY if created by this queue, not if externally provided)
    *
    * NOTE: Does NOT delete the table - data persists
    */
   async stop(): Promise<void> {
+    // Idempotent - if not running, just return
+    if (!this.isRunning) {
+      return;
+    }
+
     // Stop background jobs by setting flag and clearing timeouts
     this.isRunning = false;
     if (this.staleCheckTimeout) {
@@ -360,6 +428,17 @@ export class PgQueue extends EventEmitter {
     if (this.retryCheckTimeout) {
       clearTimeout(this.retryCheckTimeout);
       this.retryCheckTimeout = null;
+    }
+
+    // Wait for consumption loop to finish
+    if (this.consumptionLoop) {
+      await this.consumptionLoop;
+      this.consumptionLoop = null;
+    }
+
+    // Wait for all in-flight messages to complete (graceful shutdown)
+    if (this.inflightMessages.size > 0) {
+      await Promise.all(Array.from(this.inflightMessages));
     }
 
     // Stop LISTEN
@@ -379,6 +458,93 @@ export class PgQueue extends EventEmitter {
     }
 
     this.emit("stopped");
+  }
+
+  /**
+   * Main consumption loop - continuously tries to consume messages
+   * Respects concurrency limits and runs until stop() is called
+   */
+  private async startConsumptionLoop(): Promise<void> {
+    while (this.isRunning) {
+      try {
+        // Check if we can process more messages
+        if (this.activeWorkers >= this.concurrency) {
+          // Wait a bit before checking again
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          continue;
+        }
+
+        // Try to consume a message
+        await this.triggerConsumption();
+
+        // Small delay to prevent tight loop
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      } catch (error) {
+        // Log error but don't stop the loop
+        this.emit("error", new BackgroundJobError("Error in consumption loop", error as Error));
+        // Wait before retrying
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  /**
+   * Try to consume a single message if under concurrency limit
+   */
+  private async triggerConsumption(): Promise<void> {
+    // Check concurrency limit
+    if (this.activeWorkers >= this.concurrency) {
+      return;
+    }
+
+    // Try to dequeue a message
+    const message = await this.dequeue();
+    if (!message) {
+      // No message available
+      return;
+    }
+
+    // Process message asynchronously
+    this.activeWorkers++;
+    const processingPromise = this.processMessage(message).finally(() => {
+      this.activeWorkers--;
+      // Remove from in-flight set
+      this.inflightMessages.delete(processingPromise);
+    });
+
+    // Track in-flight message
+    this.inflightMessages.add(processingPromise);
+  }
+
+  /**
+   * Process a single message with its registered handler
+   */
+  private async processMessage(message: QueueMessage): Promise<void> {
+    const messageType = message.getType();
+    const handler = this.handlers.get(messageType);
+
+    if (!handler) {
+      // No handler registered for this message type
+      const error = new Error(`No handler registered for message type: ${messageType}`);
+      this.emit("error", error);
+      // Nack the message so it can be retried or moved to DLQ
+      await this.nack(message.getId(), error);
+      return;
+    }
+
+    try {
+      // Call the handler
+      await handler(message);
+      // Handler succeeded - ack the message
+      await this.ack(message.getId());
+    } catch (error) {
+      // Handler failed - nack the message
+      this.emit(
+        "error",
+        new BackgroundJobError(`Handler failed for message type: ${messageType}`, error as Error)
+      );
+      await this.nack(message.getId(), error as Error);
+    }
   }
 
   /**
