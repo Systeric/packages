@@ -14,7 +14,13 @@ import {
   generateNotifyTriggerSQL,
   generateMigrationSQL,
 } from "./infrastructure/utils/sqlGenerators";
-import { DatabaseError, TransactionError, BackgroundJobError } from "./domain/errors/PgQueueErrors";
+import {
+  DatabaseError,
+  TransactionError,
+  BackgroundJobError,
+  NoHandlerRegisteredError,
+  HandlerExecutionError,
+} from "./domain/errors/PgQueueErrors";
 
 export interface PgQueueConfig {
   /**
@@ -503,9 +509,7 @@ export class PgQueue extends EventEmitter {
 
     if (!handler) {
       // No handler registered for this message type
-      const error = new BackgroundJobError(
-        `No handler registered for message type: ${messageType}`
-      );
+      const error = new NoHandlerRegisteredError(messageType);
       this.emit("error", error);
       // Nack the message so it can be retried or moved to DLQ
       await this.nack(message.getId(), error);
@@ -519,10 +523,8 @@ export class PgQueue extends EventEmitter {
       await this.ack(message.getId());
     } catch (error) {
       // Handler failed - nack the message
-      this.emit(
-        "error",
-        new BackgroundJobError(`Handler failed for message type: ${messageType}`, error as Error)
-      );
+      const handlerError = new HandlerExecutionError(messageType, error as Error);
+      this.emit("error", handlerError);
       await this.nack(message.getId(), error as Error);
     }
   }
