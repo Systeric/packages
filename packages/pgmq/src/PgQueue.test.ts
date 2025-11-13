@@ -273,13 +273,16 @@ describe("PgQueue - Auto-consumption", () => {
 
       await queue.start();
 
-      // Wait a bit for the error to be emitted
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait for the error event
+      await waitForEvents(queue, "error", 1);
 
       // Error should be emitted
-      expect(errorHandler).toHaveBeenCalled();
+      expect(errorHandler).toHaveBeenCalledTimes(1);
       const error = errorHandler.mock.calls[0][0];
       expect(error.message).toContain("Failed to dequeue message for consumption");
+
+      // Handler should not have been called
+      expect(handler).not.toHaveBeenCalled();
 
       // Restore the spy
       dequeueSpy.mockRestore();

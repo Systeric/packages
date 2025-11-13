@@ -149,15 +149,6 @@ export class InvalidQueryParameterError extends PgQueueError {
 }
 
 /**
- * Thrown when no handler is registered for a message type
- */
-export class NoHandlerRegisteredError extends PgQueueError {
-  constructor(messageType: string) {
-    super(`No handler registered for message type: ${messageType}`, "NO_HANDLER_REGISTERED_ERROR");
-  }
-}
-
-/**
  * Thrown when a message handler execution fails
  */
 export class HandlerExecutionError extends PgQueueError {
