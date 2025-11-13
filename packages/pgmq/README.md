@@ -67,6 +67,7 @@ For now, you can use it locally in this monorepo or install directly from GitHub
   - [How do I set up the database?](#q-how-do-i-set-up-the-database-schema)
   - [How do I publish messages?](#q-how-do-i-publish-messages-to-the-queue)
   - [How do I process messages?](#q-how-do-i-process-messages-from-the-queue)
+  - [How does auto-consumption work?](#q-how-does-auto-consumption-work)
   - [How do I use with NestJS?](#q-how-do-i-use-pg-queue-with-nestjs)
   - [Can I run multiple backend instances?](#q-can-i-run-multiple-backend-instances-with-a-single-database)
   - [What if a worker crashes?](#q-what-happens-if-a-worker-crashes-while-processing)
@@ -277,11 +278,63 @@ await queue.enqueue({
 
 ### Q: How do I process messages from the queue?
 
-**Event-Driven Worker (Recommended):**
+**Auto-Consumption with Handlers (Recommended):**
+
+The easiest way to process messages is using auto-consumption. Register handlers for your message types, then call `start()` - the queue will automatically consume messages for you:
 
 ```typescript
 import { PgQueue } from "@systeric/pg-queue";
 
+const queue = await PgQueue.create({
+  queueName: "my_queue",
+  connectionString: process.env.DATABASE_URL!,
+});
+
+// Register handlers for different message types
+queue.registerHandler("email.send", async (message) => {
+  const { to, subject, body } = message.getPayload();
+  await sendEmail(to, subject, body);
+  // Queue automatically calls ack() on success or nack() on error
+});
+
+queue.registerHandler("sms.send", async (message) => {
+  const { phone, text } = message.getPayload();
+  await sendSMS(phone, text);
+});
+
+queue.registerHandler("webhook.post", async (message) => {
+  const { url, data } = message.getPayload();
+  await fetch(url, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+});
+
+// Start consuming messages with concurrency control
+await queue.start({ concurrency: 5 }); // Process up to 5 messages concurrently
+
+// Graceful shutdown - waits for in-flight messages to complete
+process.on("SIGTERM", async () => {
+  await queue.stop();
+  process.exit(0);
+});
+```
+
+**How Auto-Consumption Works:**
+
+- When you call `start()`, the queue automatically begins consuming both **existing** PENDING messages and **new** messages enqueued after startup
+- Handlers are called automatically when messages are dequeued
+- If a handler succeeds, the message is automatically acknowledged (`ack`)
+- If a handler throws an error, the message is automatically rejected (`nack`) and will be retried
+- The `concurrency` option controls how many messages can be processed simultaneously (default: 1)
+- Calling `stop()` waits for all in-flight messages to complete before shutting down (graceful shutdown)
+- If no handler is registered for a message type, the message is nacked and an error event is emitted
+
+**Manual Dequeue (Advanced):**
+
+If you need more control, you can manually dequeue and process messages:
+
+```typescript
 const queue = await PgQueue.create({
   queueName: "my_queue",
   connectionString: process.env.DATABASE_URL!,
@@ -306,48 +359,192 @@ queue.on("notification", async () => {
     await queue.nack(message.getId(), error);
   }
 });
+```
 
-// Graceful shutdown
+---
+
+### Q: How does auto-consumption work?
+
+**Overview:**
+
+Auto-consumption is the recommended way to process messages. When you register handlers and call `start()`, the queue automatically:
+
+1. **Consumes existing messages** - Processes all PENDING messages that were enqueued before the worker started
+2. **Consumes new messages** - Instantly processes messages enqueued after startup via LISTEN/NOTIFY
+3. **Handles ack/nack automatically** - Success = ack, Error = nack with retry
+4. **Respects concurrency limits** - Processes multiple messages concurrently (configurable)
+5. **Graceful shutdown** - Waits for in-flight messages to complete when `stop()` is called
+
+**Example with 5 Messages Already in Queue:**
+
+```typescript
+// Scenario: 5 messages were enqueued when no worker was running
+// Now we start a worker:
+
+const queue = await PgQueue.create({
+  queueName: "my_queue",
+  connectionString: process.env.DATABASE_URL!,
+});
+
+queue.registerHandler("task", async (message) => {
+  console.log("Processing:", message.getPayload());
+  await processTask(message.getPayload());
+});
+
+// When start() is called, the queue immediately begins consuming
+// all 5 existing PENDING messages
+await queue.start({ concurrency: 3 });
+
+// Output:
+// Processing: { id: 1 }
+// Processing: { id: 2 }
+// Processing: { id: 3 }
+// (3 at a time due to concurrency: 3)
+// Processing: { id: 4 }
+// Processing: { id: 5 }
+```
+
+**Concurrency Control:**
+
+```typescript
+// Process 1 message at a time (default)
+await queue.start();
+
+// Process up to 5 messages concurrently
+await queue.start({ concurrency: 5 });
+
+// Process up to 20 messages concurrently
+await queue.start({ concurrency: 20 });
+```
+
+**Error Handling:**
+
+When a handler throws an error, the message is automatically nacked and will be retried:
+
+```typescript
+queue.registerHandler("risky-task", async (message) => {
+  // If this throws, message is nacked and retried
+  await riskyOperation(message.getPayload());
+});
+
+// Listen for errors
+queue.on("error", (error) => {
+  console.error("Handler failed:", error);
+  // Log to monitoring service, send alert, etc.
+});
+```
+
+**No Handler Registered:**
+
+If a message type has no registered handler, it's automatically nacked and an error is emitted:
+
+```typescript
+// Only registered "email.send" handler
+queue.registerHandler("email.send", async (message) => {
+  await sendEmail(message.getPayload());
+});
+
+await queue.start();
+
+// If queue receives "sms.send" message (no handler), it will:
+// 1. Emit error event
+// 2. Nack the message
+// 3. Message will be retried or sent to DLQ
+queue.on("error", (error) => {
+  console.error(error.message); // "No handler registered for message type: sms.send"
+});
+```
+
+**Graceful Shutdown:**
+
+When you call `stop()`, the queue waits for all in-flight messages to complete:
+
+```typescript
 process.on("SIGTERM", async () => {
+  console.log("Shutting down...");
+  // This waits for all active handlers to complete
   await queue.stop();
+  console.log("All messages processed, exiting");
   process.exit(0);
 });
 ```
 
-**Processing by Message Type:**
+**Handling Large Volumes (1000+ Messages):**
+
+The queue handles large volumes efficiently without requiring explicit batching:
 
 ```typescript
-const handlers = {
-  "email.send": async (payload) => {
-    await sendEmail(payload.to, payload.subject, payload.body);
-  },
-  "sms.send": async (payload) => {
-    await sendSMS(payload.phone, payload.message);
-  },
-  "webhook.post": async (payload) => {
-    await fetch(payload.url, {
-      method: "POST",
-      body: JSON.stringify(payload.data),
-    });
-  },
-};
+// Scenario: 1000 pending messages in the queue
 
-queue.on("notification", async () => {
-  const message = await queue.dequeue();
-  if (!message) return;
-
-  try {
-    const handler = handlers[message.getType()];
-    if (!handler) {
-      throw new Error(`Unknown message type: ${message.getType()}`);
-    }
-
-    await handler(message.getPayload());
-    await queue.ack(message.getId());
-  } catch (error) {
-    await queue.nack(message.getId(), error);
-  }
+const queue = await PgQueue.create({
+  queueName: "high_volume_queue",
+  connectionString: process.env.DATABASE_URL!,
 });
+
+queue.registerHandler("task", async (message) => {
+  await processTask(message.getPayload());
+});
+
+// Process up to 20 messages concurrently
+// The queue will continuously consume until all 1000 are processed
+await queue.start({ concurrency: 20 });
+
+// How it works:
+// 1. The queue dequeues messages one at a time using FOR UPDATE SKIP LOCKED
+// 2. Up to 20 messages are processed concurrently (based on concurrency setting)
+// 3. As handlers complete, new messages are dequeued automatically
+// 4. The consumption loop continues until the queue is empty
+// 5. No memory issues - messages are processed as they're dequeued, not loaded all at once
+```
+
+**Key Points:**
+
+- **No Batch Loading**: Messages are dequeued one at a time, not loaded in bulk
+- **Memory Efficient**: Only `concurrency` number of messages are in memory at once
+- **Automatic Throttling**: Concurrency setting prevents overwhelming your system
+- **Work Stealing**: Multiple workers can process the same queue simultaneously
+- **No Breaking**: The system won't break with 1000, 10,000, or 1,000,000 messages
+
+**Performance Tuning:**
+
+```typescript
+// Low volume, simple tasks
+await queue.start({ concurrency: 1 });
+
+// Medium volume (100-1000 messages)
+await queue.start({ concurrency: 10 });
+
+// High volume (1000+ messages), fast tasks
+await queue.start({ concurrency: 50 });
+
+// High volume, I/O heavy tasks (API calls, database writes)
+await queue.start({ concurrency: 100 });
+
+// Very high volume with external rate limiting
+await queue.start({ concurrency: 5 }); // Throttle to avoid overwhelming external APIs
+```
+
+**Multi-Worker Setup:**
+
+For extremely high volumes, run multiple worker instances:
+
+```typescript
+// Worker Instance 1
+const worker1 = await PgQueue.create({
+  queueName: "high_volume_queue",
+  connectionString: process.env.DATABASE_URL!,
+});
+await worker1.start({ concurrency: 20 });
+
+// Worker Instance 2 (different process/container)
+const worker2 = await PgQueue.create({
+  queueName: "high_volume_queue", // Same queue name
+  connectionString: process.env.DATABASE_URL!,
+});
+await worker2.start({ concurrency: 20 });
+
+// Result: 40 messages processed concurrently across 2 workers
+// FOR UPDATE SKIP LOCKED ensures no duplicate processing
 ```
 
 ---
@@ -356,13 +553,15 @@ queue.on("notification", async () => {
 
 pg-queue integrates seamlessly with NestJS using providers and lifecycle hooks.
 
-**Step 1: Create a Queue Module**
+**Step 1: Create a Queue Module with Auto-Consumption**
 
 ```typescript
 // queue/queue.module.ts
-import { Module, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
+import { Module, OnModuleInit, OnModuleDestroy, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PgQueue } from "@systeric/pg-queue";
+import { EmailService } from "../email/email.service";
+import { NotificationService } from "../notification/notification.service";
 
 @Module({
   providers: [
@@ -381,37 +580,31 @@ import { PgQueue } from "@systeric/pg-queue";
   exports: ["PGMQ_QUEUE"],
 })
 export class QueueModule implements OnModuleInit, OnModuleDestroy {
-  constructor(@Inject("PGMQ_QUEUE") private readonly queue: PgQueue) {}
+  constructor(
+    @Inject("PGMQ_QUEUE") private readonly queue: PgQueue,
+    private readonly emailService: EmailService,
+    private readonly notificationService: NotificationService
+  ) {}
 
   async onModuleInit() {
-    // Start listening for messages when app starts
-    await this.queue.start();
-    this.setupWorker();
+    // Register message handlers
+    this.queue.registerHandler("email.send", async (message) => {
+      const { to, subject, body } = message.getPayload();
+      await this.emailService.send(to, subject, body);
+    });
+
+    this.queue.registerHandler("notification.push", async (message) => {
+      const { userId, title, body } = message.getPayload();
+      await this.notificationService.sendPush(userId, title, body);
+    });
+
+    // Start auto-consumption with concurrency
+    await this.queue.start({ concurrency: 10 });
   }
 
   async onModuleDestroy() {
-    // Graceful shutdown when app stops
+    // Graceful shutdown - waits for in-flight messages
     await this.queue.stop();
-  }
-
-  private setupWorker() {
-    this.queue.on("notification", async () => {
-      const message = await this.queue.dequeue();
-      if (!message) return;
-
-      try {
-        // Process message here or delegate to a service
-        await this.processMessage(message);
-        await this.queue.ack(message.getId());
-      } catch (error) {
-        await this.queue.nack(message.getId(), error);
-      }
-    });
-  }
-
-  private async processMessage(message: QueueMessage) {
-    // Your message processing logic
-    console.log("Processing:", message.getType(), message.getPayload());
   }
 }
 ```
