@@ -478,8 +478,20 @@ export class PgQueue extends EventEmitter {
       return;
     }
 
-    // Try to dequeue a message
-    const message = await this.dequeue();
+    let message: QueueMessage | null;
+    try {
+      // Try to dequeue a message
+      message = await this.dequeue();
+    } catch (error) {
+      this.emit(
+        "error",
+        new BackgroundJobError("Failed to dequeue message for consumption", error as Error)
+      );
+      // Stop this worker chain on dequeue error to prevent a potential tight loop.
+      // Other worker chains or new notifications will attempt to continue consumption.
+      return;
+    }
+
     if (!message) {
       // No message available - worker becomes idle
       return;
