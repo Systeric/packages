@@ -183,4 +183,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Not yet published to npm (prepared for 0.2.0 release)
 
 [0.2.0]: https://github.com/Systeric/packages/compare/@systeric/auth@0.1.0...@systeric/auth@0.2.0
-[0.1.0]: https://github.com/Systeric/packages/tree/main/packages/auth
+[0.1.0]: https://github.com/Systeric/packages/tree/@systeric/auth@0.1.0/packages/auth
