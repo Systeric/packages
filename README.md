@@ -135,8 +135,9 @@ Extensible calendar service with support for multiple providers via adapter patt
 import { CalendarService, GoogleCalendarAdapter } from "@systeric/calendar";
 
 const calendar = new CalendarService({
+const calendar = new CalendarService({
   adapter: new GoogleCalendarAdapter({
-    // `tokens` would be obtained from the @systeric/auth OAuth flow
+    // The `tokens` object is obtained from the @systeric/auth package flow
     accessToken: tokens.accessToken,
   }),
 });
