@@ -34,7 +34,7 @@
     "test:watch": "vitest",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "pnpm run build && pnpm run test"
+    "prepublishOnly": "pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test"
   },
   "dependencies": {
     "googleapis": "^163.0.0",
