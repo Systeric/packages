@@ -135,6 +135,7 @@ import { CalendarService, GoogleCalendarAdapter } from "@systeric/calendar";
 
 const calendar = new CalendarService({
   adapter: new GoogleCalendarAdapter({
+    // `tokens` would be obtained from the @systeric/auth OAuth flow
     accessToken: tokens.accessToken,
   }),
 });
