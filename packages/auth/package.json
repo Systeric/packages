@@ -1,8 +1,19 @@
 {
   "name": "@systeric/auth",
-  "version": "0.1.0",
-  "private": true,
-  "description": "OAuth authentication service for Google",
+  "version": "0.2.0",
+  "private": false,
+  "description": "Extensible OAuth2 authentication service with support for multiple providers via adapter pattern",
+  "author": "Systeric",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Systeric/packages.git",
+    "directory": "packages/auth"
+  },
+  "homepage": "https://github.com/Systeric/packages/tree/main/packages/auth",
+  "bugs": {
+    "url": "https://github.com/Systeric/packages/issues"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -11,11 +22,19 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build && pnpm run test"
   },
   "dependencies": {
     "googleapis": "^163.0.0",
@@ -25,5 +44,22 @@
     "@types/node": "^20",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
+  },
+  "keywords": [
+    "oauth",
+    "oauth2",
+    "authentication",
+    "auth",
+    "google-oauth",
+    "token-management",
+    "token-refresh",
+    "adapter-pattern",
+    "typescript",
+    "ddd",
+    "domain-driven-design",
+    "value-objects"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
