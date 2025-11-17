@@ -800,4 +800,4 @@ pnpm typecheck
 
 ## License
 
-Private - Systeric Internal Use
+MIT

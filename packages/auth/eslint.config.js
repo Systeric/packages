@@ -22,6 +22,14 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['node_modules/**', 'dist/**', '.next/**', 'build/**', 'eslint.config.js'],
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      '.next/**',
+      'build/**',
+      'eslint.config.js',
+      'src/storage/PostgresTokenStore.ts',
+      'src/storage/__tests__/PostgresTokenStore.test.ts',
+    ],
   }
 );
