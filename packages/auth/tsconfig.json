@@ -7,10 +7,5 @@
     "moduleResolution": "node"
   },
   "include": ["src/**/*"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "src/storage/PostgresTokenStore.ts",
-    "src/storage/__tests__/PostgresTokenStore.test.ts"
-  ]
+  "exclude": ["node_modules", "dist"]
 }
