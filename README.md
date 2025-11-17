@@ -84,7 +84,7 @@ Extensible OAuth2 authentication service with support for multiple providers via
 - ✅ Pluggable token storage (PostgreSQL included)
 - ✅ CSRF protection with state validation
 - ✅ Type-safe with Zod schemas
-- ✅ Comprehensive testing (109 tests, 100% coverage)
+- ✅ Comprehensive testing (100% coverage)
 
 **Quick Start:**
 
