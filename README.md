@@ -104,10 +104,11 @@ const { url, state } = await oauth.getAuthorizationUrl({
   scopes: ["email", "profile"],
 });
 
-// Exchange code for tokens
+// Exchange code for tokens.
+// `authCode` and `receivedState` are from the query parameters of the redirect URI.
 const tokens = await oauth.exchangeCodeForTokens({
-  code: authCode, // The authorization code from the OAuth provider's callback
-  state: receivedState, // The state from the OAuth provider's callback for CSRF validation
+  code: authCode,
+  state: receivedState,
 });
 ```
 
