@@ -106,8 +106,8 @@ const { url, state } = await oauth.getAuthorizationUrl({
 
 // Exchange code for tokens
 const tokens = await oauth.exchangeCodeForTokens({
-  code: authCode,
-  state: receivedState,
+  code: authCode, // The authorization code from the OAuth provider's callback
+  state: receivedState, // The state from the OAuth provider's callback for CSRF validation
 });
 ```
 
