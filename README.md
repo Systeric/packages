@@ -28,8 +28,8 @@ Systeric packages aren't experiments or side projects—they're battle-tested li
 | Package                                       | Version                                                 | Description                                                               | Status            |
 | --------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------- |
 | **[@systeric/pg-queue](./packages/pgmq)**     | ![npm](https://img.shields.io/npm/v/@systeric/pg-queue) | Message queue using PostgreSQL LISTEN/NOTIFY with work-stealing           | ✅ Published      |
-| **[@systeric/auth](./packages/auth)**         | `0.1.0`                                                 | OAuth2 authentication with automatic token refresh and PostgreSQL storage | 🚧 In Development |
-| **[@systeric/calendar](./packages/calendar)** | `0.1.0`                                                 | Calendar service abstraction for multiple providers                       | 🚧 In Development |
+| **[@systeric/auth](./packages/auth)**         | ![status](https://img.shields.io/badge/status-in%20development-orange) | OAuth2 authentication with automatic token refresh and PostgreSQL storage | 🚧 In Development |
+| **[@systeric/calendar](./packages/calendar)** | ![status](https://img.shields.io/badge/status-in%20development-orange) | Calendar service abstraction for multiple providers                       | 🚧 In Development |
 
 ---
 
