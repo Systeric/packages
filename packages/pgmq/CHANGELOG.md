@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-12-02
+
+### Fixed
+
+- Added CommonJS build to fix `ERR_PACKAGE_PATH_NOT_EXPORTED` error in Docker builds
+- Updated package.json exports with proper types-first ordering, `require` condition, and `default` fallback
+- Package now supports both ESM (`import`) and CommonJS (`require`)
+
+### Changed
+
+- Build output now includes both `dist/index.js` (ESM) and `dist/index.cjs` (CJS)
+- `main` field now points to CJS for legacy Node.js compatibility
+- Added `module` field for legacy bundler compatibility
+
 ## [0.2.2] - 2025-11-12
 
 ### Fixed
