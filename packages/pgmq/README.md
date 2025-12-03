@@ -1745,8 +1745,7 @@ const queue = await PgQueue.create({
 });
 ```
 
-> **Note:** `rejectUnauthorized: false` disables certificate verification.
-> See [node-postgres SSL docs](https://node-postgres.com/features/ssl) for more options.
+> **⚠️ Security Warning:** Using `rejectUnauthorized: false` disables server certificate verification, making your connection vulnerable to man-in-the-middle attacks. Only use this in development or trusted networks. For production, configure SSL with a valid certificate authority. See [node-postgres SSL docs](https://node-postgres.com/features/ssl) for secure configuration.
 
 ---
 
