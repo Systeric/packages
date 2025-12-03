@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2025-12-03
+
+### Fixed
+
+- Fixed SSL connection failures when `sslmode` is in connection string
+- Strip `sslmode` from connection string before passing to pg Pool (avoids conflict with explicit `ssl` config)
+- Added regex fallback for `sslmode` parsing when URL parsing fails
+
 ## [0.5.0] - 2025-12-03
 
 ### Added

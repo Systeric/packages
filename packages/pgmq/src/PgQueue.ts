@@ -24,39 +24,81 @@ import {
 } from "./domain/errors/PgQueueErrors";
 
 /**
+ * Strip sslmode parameter from connection string.
+ * This is needed because pg library's sslmode conflicts with explicit ssl config.
+ */
+function stripSslModeFromConnectionString(connectionString: string): string {
+  // Remove sslmode parameter from query string
+  // Handles both ?sslmode=x and &sslmode=x cases
+  return connectionString
+    .replace(/[?&]sslmode=[^&]+/, (match) => {
+      // If it starts with ?, keep ? but remove the param
+      // If it starts with &, remove entirely
+      if (match.startsWith("?")) {
+        // Check if there are more params after
+        return "?";
+      }
+      return "";
+    })
+    .replace(/\?$/, "") // Remove trailing ? if no params left
+    .replace(/\?&/, "?"); // Fix ?& to just ?
+}
+
+/**
  * Parse sslmode from PostgreSQL connection string and return appropriate SSL config.
  * @see https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS
  */
-function parseSslModeFromConnectionString(
-  connectionString: string
-): boolean | ConnectionOptions | undefined {
+function parseSslModeFromConnectionString(connectionString: string): {
+  ssl: boolean | ConnectionOptions | undefined;
+  cleanConnectionString: string;
+} {
+  let sslmode: string | null = null;
+
+  // Try URL parsing first
   try {
     const url = new URL(connectionString);
-    const sslmode = url.searchParams.get("sslmode");
-
-    if (!sslmode) return undefined;
-
-    switch (sslmode) {
-      case "disable":
-        return false;
-      case "allow":
-      case "prefer":
-        // These modes try SSL but don't require it - let pg handle it
-        return undefined;
-      case "require":
-        // Require SSL but don't verify certificate (matches PostgreSQL behavior)
-        return { rejectUnauthorized: false };
-      case "verify-ca":
-      case "verify-full":
-        // Require SSL and verify certificate
-        return true;
-      default:
-        return undefined;
-    }
+    sslmode = url.searchParams.get("sslmode");
   } catch {
-    // If URL parsing fails, return undefined and let pg handle it
-    return undefined;
+    // URL parsing failed, try regex fallback
   }
+
+  // Regex fallback if URL parsing didn't find sslmode
+  if (!sslmode) {
+    const match = connectionString.match(/[?&]sslmode=([^&]+)/);
+    sslmode = match ? match[1] : null;
+  }
+
+  if (!sslmode) {
+    return { ssl: undefined, cleanConnectionString: connectionString };
+  }
+
+  // Strip sslmode from connection string to avoid conflicts with explicit ssl config
+  const cleanConnectionString = stripSslModeFromConnectionString(connectionString);
+
+  let ssl: boolean | ConnectionOptions | undefined;
+  switch (sslmode) {
+    case "disable":
+      ssl = false;
+      break;
+    case "allow":
+    case "prefer":
+      // These modes try SSL but don't require it - let pg handle it
+      ssl = undefined;
+      break;
+    case "require":
+      // Require SSL but don't verify certificate (matches PostgreSQL behavior)
+      ssl = { rejectUnauthorized: false };
+      break;
+    case "verify-ca":
+    case "verify-full":
+      // Require SSL and verify certificate
+      ssl = true;
+      break;
+    default:
+      ssl = undefined;
+  }
+
+  return { ssl, cleanConnectionString };
 }
 
 export interface PgQueueConfig {
@@ -223,17 +265,28 @@ export class PgQueue extends EventEmitter {
 
     // Use provided pool or create a new one
     // If ssl option is not provided, parse sslmode from connection string
-    const sslConfig =
-      config.ssl !== undefined
-        ? config.ssl
-        : config.connectionString
-          ? parseSslModeFromConnectionString(config.connectionString)
-          : undefined;
+    // We also need to strip sslmode from connection string because pg library
+    // conflicts with explicit ssl config when sslmode is present
+    let sslConfig: boolean | ConnectionOptions | undefined;
+    let connectionStringForPool = config.connectionString;
+
+    if (config.ssl !== undefined) {
+      // Explicit ssl option provided - use it and strip sslmode from connection string
+      sslConfig = config.ssl;
+      if (config.connectionString) {
+        connectionStringForPool = stripSslModeFromConnectionString(config.connectionString);
+      }
+    } else if (config.connectionString) {
+      // Parse sslmode from connection string
+      const parsed = parseSslModeFromConnectionString(config.connectionString);
+      sslConfig = parsed.ssl;
+      connectionStringForPool = parsed.cleanConnectionString;
+    }
 
     const pool =
       config.pool ||
       new Pool({
-        connectionString: config.connectionString,
+        connectionString: connectionStringForPool,
         ssl: sslConfig,
       });
     const ownsPool = !config.pool; // We own the pool if we created it

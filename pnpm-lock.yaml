@@ -49,8 +49,8 @@ importers:
         specifier: ^1.19.6
         version: 1.19.6(hono@4.10.5)
       '@systeric/pg-queue':
-        specifier: ^0.2.0
-        version: 0.2.3(pg@8.16.3)
+        specifier: workspace:*
+        version: link:../../packages/pgmq
       hono:
         specifier: ^4.6.14
         version: 4.10.5
@@ -711,17 +711,6 @@ packages:
     os: [win32]
     requiresBuild: true
     optional: true
-
-  /@systeric/pg-queue@0.2.3(pg@8.16.3):
-    resolution: {integrity: sha512-bJkzy3Hk2jQznhyfandTLgK+9d3RLDzDjlUVfPFchlY1J2rkNTdXxZrM7pZnkr1ZsolxVPuXBOWuwE8IPxdA0w==}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      pg: ^8.0.0
-    dependencies:
-      pg: 8.16.3
-      uuid: 11.1.0
-      zod: 3.25.76
-    dev: false
 
   /@tootallnate/quickjs-emscripten@0.23.0:
     resolution: {integrity: sha512-C5Mc6rdnsaJDjO3UpGW/CQTHtCKaYlScZTly4JIu97Jxo/odCiH0ITnDXSJPTOrEKk/ycSZ0AOgTmkDtkOsvIA==}

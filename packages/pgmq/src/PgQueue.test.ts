@@ -602,8 +602,9 @@ describe("PgQueue - SSL configuration", () => {
       // Expected to fail without real DB
     }
 
+    // sslmode is stripped from connection string to avoid conflicts with explicit ssl config
     expect(MockPool).toHaveBeenCalledWith({
-      connectionString: "postgresql://localhost/test?sslmode=require",
+      connectionString: "postgresql://localhost/test",
       ssl: { rejectUnauthorized: false },
     });
 
@@ -642,8 +643,9 @@ describe("PgQueue - SSL configuration", () => {
       // Expected to fail without real DB
     }
 
+    // sslmode is stripped from connection string to avoid conflicts with explicit ssl config
     expect(MockPool).toHaveBeenCalledWith({
-      connectionString: "postgresql://localhost/test?sslmode=verify-full",
+      connectionString: "postgresql://localhost/test",
       ssl: true,
     });
 
@@ -682,8 +684,9 @@ describe("PgQueue - SSL configuration", () => {
       // Expected to fail without real DB
     }
 
+    // sslmode is stripped from connection string to avoid conflicts with explicit ssl config
     expect(MockPool).toHaveBeenCalledWith({
-      connectionString: "postgresql://localhost/test?sslmode=disable",
+      connectionString: "postgresql://localhost/test",
       ssl: false,
     });
 
@@ -723,8 +726,9 @@ describe("PgQueue - SSL configuration", () => {
       // Expected to fail without real DB
     }
 
+    // sslmode is stripped from connection string to avoid conflicts with explicit ssl config
     expect(MockPool).toHaveBeenCalledWith({
-      connectionString: "postgresql://localhost/test?sslmode=require",
+      connectionString: "postgresql://localhost/test",
       ssl: true, // Explicit option wins
     });
 
