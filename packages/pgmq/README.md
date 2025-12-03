@@ -1735,7 +1735,26 @@ describe("PgQueue Integration", () => {
 
 ## SSL Configuration
 
-For cloud databases requiring SSL (DigitalOcean, AWS RDS, Heroku):
+SSL is automatically configured when your connection string includes `sslmode`:
+
+```typescript
+// sslmode=require is automatically detected - no extra config needed!
+const queue = await PgQueue.create({
+  connectionString: "postgresql://user:pass@host:5432/db?sslmode=require",
+  queueName: "emails",
+});
+```
+
+The following `sslmode` values are supported:
+
+| sslmode       | SSL Config                           |
+| ------------- | ------------------------------------ |
+| `disable`     | `ssl: false`                         |
+| `require`     | `ssl: { rejectUnauthorized: false }` |
+| `verify-ca`   | `ssl: true`                          |
+| `verify-full` | `ssl: true`                          |
+
+You can also explicitly set SSL config (overrides `sslmode`):
 
 ```typescript
 const queue = await PgQueue.create({
@@ -1745,7 +1764,7 @@ const queue = await PgQueue.create({
 });
 ```
 
-> **⚠️ Security Warning:** Using `rejectUnauthorized: false` disables server certificate verification, making your connection vulnerable to man-in-the-middle attacks. Only use this in development or trusted networks. For production, configure SSL with a valid certificate authority. See [node-postgres SSL docs](https://node-postgres.com/features/ssl) for secure configuration.
+> **⚠️ Security Warning:** `sslmode=require` and `rejectUnauthorized: false` disable certificate verification, making your connection vulnerable to man-in-the-middle attacks. Only use in development or trusted networks. For production, use `sslmode=verify-full`. See [node-postgres SSL docs](https://node-postgres.com/features/ssl).
 
 ---
 

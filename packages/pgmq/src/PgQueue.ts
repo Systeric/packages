@@ -23,6 +23,42 @@ import {
   HandlerExecutionError,
 } from "./domain/errors/PgQueueErrors";
 
+/**
+ * Parse sslmode from PostgreSQL connection string and return appropriate SSL config.
+ * @see https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS
+ */
+function parseSslModeFromConnectionString(
+  connectionString: string
+): boolean | ConnectionOptions | undefined {
+  try {
+    const url = new URL(connectionString);
+    const sslmode = url.searchParams.get("sslmode");
+
+    if (!sslmode) return undefined;
+
+    switch (sslmode) {
+      case "disable":
+        return false;
+      case "allow":
+      case "prefer":
+        // These modes try SSL but don't require it - let pg handle it
+        return undefined;
+      case "require":
+        // Require SSL but don't verify certificate (matches PostgreSQL behavior)
+        return { rejectUnauthorized: false };
+      case "verify-ca":
+      case "verify-full":
+        // Require SSL and verify certificate
+        return true;
+      default:
+        return undefined;
+    }
+  } catch {
+    // If URL parsing fails, return undefined and let pg handle it
+    return undefined;
+  }
+}
+
 export interface PgQueueConfig {
   /**
    * PostgreSQL connection string
@@ -186,11 +222,19 @@ export class PgQueue extends EventEmitter {
     const channelName = `${tableName}_channel`;
 
     // Use provided pool or create a new one
+    // If ssl option is not provided, parse sslmode from connection string
+    const sslConfig =
+      config.ssl !== undefined
+        ? config.ssl
+        : config.connectionString
+          ? parseSslModeFromConnectionString(config.connectionString)
+          : undefined;
+
     const pool =
       config.pool ||
       new Pool({
         connectionString: config.connectionString,
-        ssl: config.ssl,
+        ssl: sslConfig,
       });
     const ownsPool = !config.pool; // We own the pool if we created it
 
