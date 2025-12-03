@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-12-03
+
+### Added
+
+- SSL/TLS configuration support via `ssl` option in `PgQueueConfig`
+- Supports `ssl: true`, `ssl: false`, or `ssl: ConnectionOptions` from Node.js `tls` module
+- Enables easy connection to cloud databases (DigitalOcean, AWS RDS, Heroku) without creating a custom Pool
+
 ## [0.3.1] - 2025-12-02
 
 ### Fixed

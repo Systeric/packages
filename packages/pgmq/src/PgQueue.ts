@@ -1,4 +1,5 @@
 import { Pool, PoolClient } from "pg";
+import type { ConnectionOptions } from "tls";
 import EventEmitter from "events";
 import { type Notification } from "pg";
 import { QueueConfig } from "./domain/vo/QueueConfig";
@@ -37,6 +38,14 @@ export interface PgQueueConfig {
    * If not provided, a new pool will be created from connectionString.
    */
   pool?: Pool;
+
+  /**
+   * SSL/TLS configuration for database connections.
+   * Only used when connectionString is provided (ignored if pool is provided).
+   * @example ssl: true
+   * @example ssl: { rejectUnauthorized: false }
+   */
+  ssl?: boolean | ConnectionOptions;
 
   /**
    * Queue name (like Kafka topic)
@@ -177,7 +186,12 @@ export class PgQueue extends EventEmitter {
     const channelName = `${tableName}_channel`;
 
     // Use provided pool or create a new one
-    const pool = config.pool || new Pool({ connectionString: config.connectionString });
+    const pool =
+      config.pool ||
+      new Pool({
+        connectionString: config.connectionString,
+        ssl: config.ssl,
+      });
     const ownsPool = !config.pool; // We own the pool if we created it
 
     // Create validated config

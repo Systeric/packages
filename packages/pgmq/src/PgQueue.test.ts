@@ -442,3 +442,78 @@ describe("PgQueue - Auto-consumption", () => {
     });
   });
 });
+
+describe("PgQueue - SSL configuration", () => {
+  let pool: Pool;
+  let queue: PgQueue;
+
+  afterEach(async () => {
+    if (queue) {
+      await queue.stop();
+      if (pool) {
+        await pool.query(`DROP TABLE IF EXISTS ${queue.getTableName()}`);
+      }
+    }
+    if (pool) {
+      await pool.end();
+    }
+  });
+
+  it("should accept ssl: true in config", async (context) => {
+    if (!dbAvailable) {
+      context.skip();
+      return;
+    }
+
+    // When pool is provided, ssl config is ignored (pool already configured)
+    // This test verifies the interface accepts ssl option without type errors
+    pool = new Pool({ connectionString: TEST_DB_URL });
+    queue = await PgQueue.create({
+      pool,
+      ssl: true, // This should be accepted by the interface
+      queueName: `ssl_test_${Date.now()}`,
+      autoCreate: true,
+    });
+
+    // Should create successfully
+    expect(queue).toBeDefined();
+    expect(queue.getTableName()).toContain("systeric_pgqueue_ssl_test");
+  });
+
+  it("should accept ssl object in config", async (context) => {
+    if (!dbAvailable) {
+      context.skip();
+      return;
+    }
+
+    // When pool is provided, ssl config is ignored (pool already configured)
+    // This test verifies the interface accepts ssl object without type errors
+    pool = new Pool({ connectionString: TEST_DB_URL });
+    queue = await PgQueue.create({
+      pool,
+      ssl: { rejectUnauthorized: false }, // This should be accepted
+      queueName: `ssl_test_obj_${Date.now()}`,
+      autoCreate: true,
+    });
+
+    // Should create successfully
+    expect(queue).toBeDefined();
+  });
+
+  it("should create queue without ssl when not provided", async (context) => {
+    if (!dbAvailable) {
+      context.skip();
+      return;
+    }
+
+    pool = new Pool({ connectionString: TEST_DB_URL });
+    queue = await PgQueue.create({
+      pool,
+      queueName: `no_ssl_test_${Date.now()}`,
+      autoCreate: true,
+    });
+
+    // Should create successfully without ssl
+    expect(queue).toBeDefined();
+  });
+});
