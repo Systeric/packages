@@ -79,6 +79,7 @@ For now, you can use it locally in this monorepo or install directly from GitHub
   - [How do I monitor queue health?](#q-how-do-i-monitor-queue-health)
   - [How do I integrate with OpenTelemetry?](#q-how-do-i-integrate-with-opentelemetry)
   - [How do I test code using pg-queue?](#q-how-do-i-test-code-that-uses-pg-queue)
+- [SSL Configuration](#ssl-configuration)
 - [API Reference](#api-reference)
 - [Events](#events)
 - [Comparison with Other Queues](#comparison-with-other-queue-systems)
@@ -1732,6 +1733,22 @@ describe("PgQueue Integration", () => {
 
 ---
 
+## SSL Configuration
+
+For cloud databases requiring SSL (DigitalOcean, AWS RDS, Heroku):
+
+```typescript
+const queue = await PgQueue.create({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  queueName: "emails",
+});
+```
+
+> **⚠️ Security Warning:** Using `rejectUnauthorized: false` disables server certificate verification, making your connection vulnerable to man-in-the-middle attacks. Only use this in development or trusted networks. For production, configure SSL with a valid certificate authority. See [node-postgres SSL docs](https://node-postgres.com/features/ssl) for secure configuration.
+
+---
+
 ## API Reference
 
 ### `PgQueue.create(config)`
@@ -1743,6 +1760,7 @@ interface PgQueueConfig {
   queueName: string; // Queue name (table will be systeric_pgqueue_{queueName})
   connectionString?: string; // PostgreSQL connection string
   pool?: Pool; // Or provide existing pool
+  ssl?: boolean | ConnectionOptions; // SSL config (ignored if pool is provided)
   autoCreate?: boolean; // Auto-create table (default: true)
   visibilityTimeoutMs?: number; // Visibility timeout (default: 300000ms = 5 min)
   pollIntervalMs?: number; // Poll interval (default: 5000ms)

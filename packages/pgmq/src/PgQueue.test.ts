@@ -442,3 +442,132 @@ describe("PgQueue - Auto-consumption", () => {
     });
   });
 });
+
+describe("PgQueue - SSL configuration", () => {
+  it("should pass ssl: true to Pool constructor when using connectionString", async () => {
+    const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
+    const mockConnect = vi.fn().mockResolvedValue({
+      query: mockQuery,
+      on: vi.fn(),
+      release: vi.fn(),
+    });
+    const mockOn = vi.fn();
+    const mockEnd = vi.fn().mockResolvedValue(undefined);
+
+    const MockPool = vi.fn().mockImplementation(() => ({
+      query: mockQuery,
+      connect: mockConnect,
+      on: mockOn,
+      end: mockEnd,
+    }));
+
+    // Dynamically import to inject mock
+    vi.doMock("pg", () => ({ Pool: MockPool }));
+
+    // Clear module cache and reimport
+    vi.resetModules();
+    const { PgQueue: MockedPgQueue } = await import("./PgQueue");
+
+    try {
+      await MockedPgQueue.create({
+        connectionString: "postgresql://localhost/test",
+        ssl: true,
+        queueName: "ssl_test",
+        autoCreate: false,
+      });
+    } catch {
+      // Expected to fail without real DB, we just want to verify Pool was called correctly
+    }
+
+    expect(MockPool).toHaveBeenCalledWith({
+      connectionString: "postgresql://localhost/test",
+      ssl: true,
+    });
+
+    vi.doUnmock("pg");
+    vi.resetModules();
+  });
+
+  it("should pass ssl object to Pool constructor when using connectionString", async () => {
+    const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
+    const mockConnect = vi.fn().mockResolvedValue({
+      query: mockQuery,
+      on: vi.fn(),
+      release: vi.fn(),
+    });
+    const mockOn = vi.fn();
+    const mockEnd = vi.fn().mockResolvedValue(undefined);
+
+    const MockPool = vi.fn().mockImplementation(() => ({
+      query: mockQuery,
+      connect: mockConnect,
+      on: mockOn,
+      end: mockEnd,
+    }));
+
+    vi.doMock("pg", () => ({ Pool: MockPool }));
+    vi.resetModules();
+    const { PgQueue: MockedPgQueue } = await import("./PgQueue");
+
+    const sslConfig = { rejectUnauthorized: false };
+
+    try {
+      await MockedPgQueue.create({
+        connectionString: "postgresql://localhost/test",
+        ssl: sslConfig,
+        queueName: "ssl_test_obj",
+        autoCreate: false,
+      });
+    } catch {
+      // Expected to fail without real DB
+    }
+
+    expect(MockPool).toHaveBeenCalledWith({
+      connectionString: "postgresql://localhost/test",
+      ssl: sslConfig,
+    });
+
+    vi.doUnmock("pg");
+    vi.resetModules();
+  });
+
+  it("should not pass ssl to Pool when ssl option is not provided", async () => {
+    const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
+    const mockConnect = vi.fn().mockResolvedValue({
+      query: mockQuery,
+      on: vi.fn(),
+      release: vi.fn(),
+    });
+    const mockOn = vi.fn();
+    const mockEnd = vi.fn().mockResolvedValue(undefined);
+
+    const MockPool = vi.fn().mockImplementation(() => ({
+      query: mockQuery,
+      connect: mockConnect,
+      on: mockOn,
+      end: mockEnd,
+    }));
+
+    vi.doMock("pg", () => ({ Pool: MockPool }));
+    vi.resetModules();
+    const { PgQueue: MockedPgQueue } = await import("./PgQueue");
+
+    try {
+      await MockedPgQueue.create({
+        connectionString: "postgresql://localhost/test",
+        queueName: "no_ssl_test",
+        autoCreate: false,
+      });
+    } catch {
+      // Expected to fail without real DB
+    }
+
+    expect(MockPool).toHaveBeenCalledWith({
+      connectionString: "postgresql://localhost/test",
+      ssl: undefined,
+    });
+
+    vi.doUnmock("pg");
+    vi.resetModules();
+  });
+});
