@@ -5,7 +5,7 @@
  *   systeric_pgqueue_{q}_notify_trigger  (32 + len(q) bytes)
  * Postgres truncates identifiers at 63 bytes, so len(q) must be ≤ 31.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Pool } from "pg";
 import { PgQueue } from "./PgQueue";
 import { InvalidQueueConfigError } from "./domain/errors";
@@ -16,8 +16,6 @@ const fakePool = {
   on: vi.fn(),
   query: vi.fn(),
 } as unknown as Pool;
-
-import { vi } from "vitest";
 
 describe("queue name length validation (#4)", () => {
   it("rejects a 32-character queue name with InvalidQueueConfigError", async () => {
