@@ -12,6 +12,7 @@ export interface QueueConfigProps {
   visibilityTimeoutMs?: number;
   pollIntervalMs?: number;
   maxRetries?: number;
+  handlerTimeoutMs?: number;
 }
 
 export class QueueConfig {
@@ -21,14 +22,18 @@ export class QueueConfig {
   private readonly visibilityTimeoutMs: number;
   private readonly pollIntervalMs: number;
   private readonly maxRetries: number;
+  private readonly handlerTimeoutMs: number | undefined;
 
-  private constructor(props: Required<QueueConfigProps>) {
+  private constructor(
+    props: Required<Omit<QueueConfigProps, "handlerTimeoutMs">> & { handlerTimeoutMs?: number }
+  ) {
     this.tableName = props.tableName;
     this.channelName = props.channelName;
     this.connectionString = props.connectionString;
     this.visibilityTimeoutMs = props.visibilityTimeoutMs;
     this.pollIntervalMs = props.pollIntervalMs;
     this.maxRetries = props.maxRetries;
+    this.handlerTimeoutMs = props.handlerTimeoutMs;
   }
 
   static create(props: QueueConfigProps): QueueConfig {
@@ -78,6 +83,12 @@ export class QueueConfig {
       throw new InvalidQueueConfigError("Max retries must be at least 1");
     }
 
+    // Validate optional handler timeout
+    const handlerTimeoutMs = props.handlerTimeoutMs;
+    if (handlerTimeoutMs !== undefined && handlerTimeoutMs <= 0) {
+      throw new InvalidQueueConfigError("Handler timeout must be positive");
+    }
+
     return new QueueConfig({
       tableName,
       channelName,
@@ -85,6 +96,7 @@ export class QueueConfig {
       visibilityTimeoutMs,
       pollIntervalMs,
       maxRetries,
+      handlerTimeoutMs,
     });
   }
 
@@ -110,5 +122,9 @@ export class QueueConfig {
 
   getMaxRetries(): number {
     return this.maxRetries;
+  }
+
+  getHandlerTimeoutMs(): number | undefined {
+    return this.handlerTimeoutMs;
   }
 }

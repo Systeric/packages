@@ -9,6 +9,7 @@ import { MessageStatus } from "./domain/vo/MessageStatus";
 import { PostgresQueueRepository } from "./infrastructure/PostgresQueueRepository";
 import { FindOptions } from "./application/ports/QueueRepository";
 import {
+  assertValidQueueName,
   getTableName,
   generateTableSQL,
   generateIndexesSQL,
@@ -21,6 +22,7 @@ import {
   BackgroundJobError,
   NoHandlerRegisteredError,
   HandlerExecutionError,
+  HandlerTimeoutError,
 } from "./domain/errors/PgQueueErrors";
 
 /**
@@ -144,7 +146,7 @@ export interface PgQueueConfig {
   visibilityTimeoutMs?: number;
 
   /**
-   * How often to check for stale/retryable messages (default: 60000ms = 1 minute)
+   * How often to check for stale/retryable messages (default: 5000ms = 5 seconds)
    */
   pollIntervalMs?: number;
 
@@ -152,6 +154,14 @@ export interface PgQueueConfig {
    * Default max retries for messages (default: 3)
    */
   maxRetries?: number;
+
+  /**
+   * Optional timeout for message handlers in milliseconds.
+   * If a handler does not resolve within this duration the message is nacked
+   * with a HandlerTimeoutError and the worker slot is freed.
+   * Default: undefined (no timeout — existing behaviour unchanged).
+   */
+  handlerTimeoutMs?: number;
 }
 
 /**
@@ -259,6 +269,9 @@ export class PgQueue extends EventEmitter {
       throw new DatabaseError("Either pool or connectionString must be provided");
     }
 
+    // Validate queue name length before deriving any Postgres identifiers
+    assertValidQueueName(config.queueName);
+
     // Generate table name from queue name
     const tableName = getTableName(config.queueName);
     const channelName = `${tableName}_channel`;
@@ -300,6 +313,7 @@ export class PgQueue extends EventEmitter {
       visibilityTimeoutMs: config.visibilityTimeoutMs,
       pollIntervalMs: config.pollIntervalMs,
       maxRetries: config.maxRetries,
+      handlerTimeoutMs: config.handlerTimeoutMs,
     });
 
     // Auto-create table if enabled (default: true)
@@ -327,6 +341,7 @@ export class PgQueue extends EventEmitter {
    * ```
    */
   static generateMigration(queueName: string): string {
+    assertValidQueueName(queueName);
     const tableName = getTableName(queueName);
     const channelName = `${tableName}_channel`;
     return generateMigrationSQL(tableName, channelName);
@@ -394,6 +409,12 @@ export class PgQueue extends EventEmitter {
           );
           if (count > 0) {
             this.emit("stale:reset", count);
+            // Wake up to `concurrency` idle workers so they pick up recovered messages.
+            // The NOTIFY trigger does not fire for PROCESSING→PENDING transitions,
+            // so we must kick workers manually here.
+            for (let i = 0; i < this.concurrency; i++) {
+              void this.triggerConsumption();
+            }
           }
           // Success - reset backoff
           this.staleCheckBackoffMs = 0;
@@ -433,6 +454,12 @@ export class PgQueue extends EventEmitter {
           const count = await this.repository.resetRetryableMessages();
           if (count > 0) {
             this.emit("retry:reset", count);
+            // Wake up to `concurrency` idle workers so they pick up retryable messages.
+            // The NOTIFY trigger fires on FAILED→PENDING updates, but calling
+            // triggerConsumption directly avoids any timing dependency on the trigger.
+            for (let i = 0; i < this.concurrency; i++) {
+              void this.triggerConsumption();
+            }
           }
           // Success - reset backoff
           this.retryCheckBackoffMs = 0;
@@ -584,16 +611,20 @@ export class PgQueue extends EventEmitter {
       return;
     }
 
-    // Check concurrency limit
+    // Check concurrency limit and reserve the slot synchronously before any await.
+    // This prevents concurrent callers from all passing the gate before any increment.
     if (this.activeWorkers >= this.concurrency) {
       return;
     }
+    this.activeWorkers++;
 
     let message: QueueMessage | null;
     try {
       // Try to dequeue a message
       message = await this.dequeue();
     } catch (error) {
+      // Release reserved slot on dequeue error
+      this.activeWorkers--;
       this.emit(
         "error",
         new BackgroundJobError("Failed to dequeue message for consumption", error as Error)
@@ -604,12 +635,12 @@ export class PgQueue extends EventEmitter {
     }
 
     if (!message) {
-      // No message available - worker becomes idle
+      // No message available - release reserved slot, worker becomes idle
+      this.activeWorkers--;
       return;
     }
 
-    // Process message asynchronously
-    this.activeWorkers++;
+    // Slot already reserved above; kick off processing
     const processingPromise = this.processMessage(message).finally(() => {
       this.activeWorkers--;
       // Remove from in-flight set
@@ -639,16 +670,39 @@ export class PgQueue extends EventEmitter {
       return;
     }
 
+    // Build the handler promise, optionally wrapped in a timeout race
+    const timeoutMs = this.config.getHandlerTimeoutMs();
+    let handlerPromise: Promise<void>;
+
+    if (timeoutMs !== undefined) {
+      let timeoutHandle: ReturnType<typeof setTimeout>;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new HandlerTimeoutError(messageType, timeoutMs));
+        }, timeoutMs);
+      });
+
+      handlerPromise = Promise.race([handler(message), timeoutPromise]).finally(() => {
+        clearTimeout(timeoutHandle);
+      });
+    } else {
+      handlerPromise = handler(message);
+    }
+
     try {
-      // Call the handler
-      await handler(message);
+      await handlerPromise;
       // Handler succeeded - ack the message
       await this.ack(message.getId());
     } catch (error) {
-      // Handler failed - nack the message
-      const handlerError = new HandlerExecutionError(messageType, error as Error);
-      this.emit("error", handlerError);
-      await this.nack(message.getId(), error as Error);
+      if (error instanceof HandlerTimeoutError) {
+        this.emit("error", error);
+        await this.nack(message.getId(), error);
+      } else {
+        // Handler failed - nack the message
+        const handlerError = new HandlerExecutionError(messageType, error as Error);
+        this.emit("error", handlerError);
+        await this.nack(message.getId(), error as Error);
+      }
     }
   }
 
