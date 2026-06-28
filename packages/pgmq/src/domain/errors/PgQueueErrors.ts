@@ -170,3 +170,16 @@ export class HandlerExecutionError extends PgQueueError {
     super(`Handler failed for message type: ${messageType}`, "HANDLER_EXECUTION_ERROR", cause);
   }
 }
+
+/**
+ * Thrown when a message handler exceeds the configured handlerTimeoutMs.
+ * The message is nacked so it can be retried or moved to DLQ.
+ */
+export class HandlerTimeoutError extends PgQueueError {
+  constructor(messageType: string, timeoutMs: number) {
+    super(
+      `Handler for message type "${messageType}" timed out after ${timeoutMs}ms`,
+      "HANDLER_TIMEOUT_ERROR"
+    );
+  }
+}

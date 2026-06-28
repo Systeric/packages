@@ -1,9 +1,33 @@
+import { InvalidQueueConfigError } from "../../domain/errors";
+
+/**
+ * The longest Postgres identifier derived from a queue name is the notify trigger:
+ *   systeric_pgqueue_{q}_notify_trigger
+ * = prefix(17) + len(q) + suffix(15) = 32 + len(q) bytes.
+ * Postgres truncates identifiers at 63 bytes, so len(q) must be ≤ 31.
+ */
+const TABLE_PREFIX = "systeric_pgqueue_";
+const LONGEST_SUFFIX = "_notify_trigger"; // also used for trigger name
+const MAX_QUEUE_NAME_LENGTH = 63 - TABLE_PREFIX.length - LONGEST_SUFFIX.length; // 31
+
+/**
+ * Throw InvalidQueueConfigError if the queue name would produce a Postgres identifier
+ * longer than 63 bytes.
+ */
+export function assertValidQueueName(queueName: string): void {
+  if (queueName.length > MAX_QUEUE_NAME_LENGTH) {
+    throw new InvalidQueueConfigError(
+      `Queue name "${queueName}" is ${queueName.length} characters long; maximum is ${MAX_QUEUE_NAME_LENGTH} to keep all derived Postgres identifiers within the 63-byte limit`
+    );
+  }
+}
+
 /**
  * Generate PostgreSQL table name from queue name
  * Example: "emails" -> "systeric_pgqueue_emails"
  */
 export function getTableName(queueName: string): string {
-  return `systeric_pgqueue_${queueName}`;
+  return `${TABLE_PREFIX}${queueName}`;
 }
 
 /**
