@@ -1,8 +1,15 @@
 # Systeric
 
+> [!IMPORTANT]
+> **This repository is archived.** `@systeric/pg-queue` is now developed in the
+> [`Systeric/systeric-ops-platform`](https://github.com/Systeric/systeric-ops-platform)
+> monorepo under [`packages/pgmq`](https://github.com/Systeric/systeric-ops-platform/tree/main/packages/pgmq).
+> The published npm package (`@systeric/pg-queue`) is unchanged: `npm install @systeric/pg-queue`.
+> The `auth` and `calendar` packages remain here, read-only, and are not currently maintained.
+
 **Flawless features, reliably.**
 
-Production-ready TypeScript libraries built with Domain-Driven Design, 100% test coverage, and PostgreSQL-first architecture.
+Production-ready TypeScript libraries built with Domain-Driven Design and PostgreSQL-first architecture.
 
 ---
 
@@ -25,9 +32,9 @@ Systeric packages aren't experiments or side projects—they're battle-tested li
 
 ## Packages
 
-| Package                                       | Version                                                 | Description                                                               | Status            |
-| --------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------- |
-| **[@systeric/pg-queue](./packages/pgmq)**     | ![npm](https://img.shields.io/npm/v/@systeric/pg-queue) | Message queue using PostgreSQL LISTEN/NOTIFY with work-stealing           | ✅ Published      |
+| Package                                       | Version                                                                | Description                                                               | Status            |
+| --------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------- |
+| **[@systeric/pg-queue](./packages/pgmq)**     | ![npm](https://img.shields.io/npm/v/@systeric/pg-queue)                | Message queue using PostgreSQL LISTEN/NOTIFY with work-stealing           | ✅ Published      |
 | **[@systeric/auth](./packages/auth)**         | ![status](https://img.shields.io/badge/status-in%20development-orange) | OAuth2 authentication with automatic token refresh and PostgreSQL storage | 🚧 In Development |
 | **[@systeric/calendar](./packages/calendar)** | ![status](https://img.shields.io/badge/status-in%20development-orange) | Calendar service abstraction for multiple providers                       | 🚧 In Development |
 
